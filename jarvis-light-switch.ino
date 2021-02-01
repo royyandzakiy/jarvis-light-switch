@@ -21,7 +21,7 @@ const char* topic_light_switch = "jarvis/light_switch/1";
 #endif
 
 // SERVO
-int servoPin = 3; // Declare the Servo pin  
+int servoPin = 2; // Declare the Servo pin  2 = D4
 Servo servo; // Create a servo object 
 
 /*====================================*/
@@ -132,7 +132,7 @@ void switch_change_on(bool turn_on) {
     servo.write(0);
     delay(500);
   } else {
-    servo.write(180);
+    servo.write(30);
     delay(500);
   }
 }
