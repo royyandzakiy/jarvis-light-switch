@@ -6,7 +6,7 @@ Running on a NodeMCU, connected to a MQTT Broker using the topic "jarvis/light_s
 
 Connect Servo to NodeMCU GPIO 2, or same as D4 on the board
 
-[docs/img.jpeg]()
+![](docs/img.jpeg)
 
 ---
 
