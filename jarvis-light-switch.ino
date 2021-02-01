@@ -31,6 +31,9 @@ void setup_wifi();
 void callback(char*, byte*, unsigned int);
 void reconnect();
 
+void set_mqtt();
+void check_mqtt(long interval);
+
 void switch_change_on(bool);
 void setup_servo();
 
@@ -39,15 +42,18 @@ void setup_servo();
 
 void setup() {
   pinMode(BUILTIN_LED, OUTPUT);    // Initialize the BUILTIN_LED pin as an output
-  digitalWrite(BUILTIN_LED, HIGH); // set LED state to ON during setup
+  digitalWrite(BUILTIN_LED, LOW); // set LED state to ON during setup
   Serial.begin(115200);
+  Serial.println("Setup begin...");
   
   setup_wifi();
   setup_servo();
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
-
+  setup_mqtt();
+  check_mqtt(10000); // check for interval amount of time
+  
   digitalWrite(BUILTIN_LED, HIGH); // reset LED state to OFF
+  Serial.println("Setup done. Entering Deep Sleep...");
+  ESP.deepSleep(5e6); // enter deep sleep mode
 }
 
 void loop() {
@@ -84,6 +90,20 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
+void setup_mqtt() {
+  // mqtt
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+  reconnect();
+}
+
+void check_mqtt(long interval) { // check for interval amount of time
+  int start_count = millis();
+  while ((millis() - start_count) < interval) {
+    client.loop();
+  }
+}
+
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -96,10 +116,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
   // Switch on the LED if an 1 was received as first character
   if ((char)payload[0] == '1') {
     switch_change_on(true);
-    digitalWrite(BUILTIN_LED, LOW);
+    //digitalWrite(BUILTIN_LED, LOW);
   } else if ((char)payload[0] == '0') {
     switch_change_on(false);  // Turn the LED off by making the voltage HIGH
-    digitalWrite(BUILTIN_LED, HIGH);
+    //digitalWrite(BUILTIN_LED, HIGH);
   }
 
 }
@@ -109,7 +129,7 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Create a random client ID
-    String clientId = "ESP8266Client-";
+    String clientId = "JarvisClient-";
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
     if (client.connect(clientId.c_str()), mqtt_user, mqtt_pass) {
