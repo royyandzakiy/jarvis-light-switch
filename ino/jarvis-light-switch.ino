@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <Servo.h> 
@@ -38,9 +39,11 @@ Servo servo; // Create a servo object
 // Prototypes
 
 void setup_wifi();
+void setup_mqtt();
 void callback(char*, byte*, unsigned int);
 void reconnect();
 void loop_light_switch();
+void print_time();
 
 void set_mqtt();
 void check_mqtt(long interval);
