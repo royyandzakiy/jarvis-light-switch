@@ -3,8 +3,8 @@
 #include <Servo.h> 
 #include "credentials.h"
 
-
 /*====================================*/
+// global variables
 
 // WIFI & MQTT
 WiFiClient espClient;
@@ -34,12 +34,12 @@ void reconnect();
 void switch_change_on(bool);
 void setup_servo();
 
-
 /*====================================*/
+// main code
 
 void setup() {
-  pinMode(BUILTIN_LED, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
-  digitalWrite(BUILTIN_LED, HIGH);
+  pinMode(BUILTIN_LED, OUTPUT);    // Initialize the BUILTIN_LED pin as an output
+  digitalWrite(BUILTIN_LED, HIGH); // set LED state to ON during setup
   Serial.begin(115200);
   
   setup_wifi();
@@ -47,11 +47,10 @@ void setup() {
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 
-  digitalWrite(BUILTIN_LED, HIGH);
+  digitalWrite(BUILTIN_LED, HIGH); // reset LED state to OFF
 }
 
 void loop() {
-  Alarm.delay(1);
   if (!client.connected()) {
     reconnect();
   }
@@ -59,10 +58,9 @@ void loop() {
 }
 
 /*====================================*/
-
+// Functions
 
 // WIFI & MQTT
-
 void setup_wifi() {
   delay(10);
   // We start by connecting to a WiFi network
@@ -129,7 +127,6 @@ void reconnect() {
 }
 
 // SERVO
-
 void switch_change_on(bool turn_on) {
   if (turn_on) {
     servo.write(0);
