@@ -1,15 +1,22 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <Servo.h> 
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 #include "credentials.h"
 
 /*====================================*/
 // global variables
 
+// #define automate_light_switch
+
 // WIFI & MQTT
 WiFiClient espClient;
 PubSubClient client(espClient);
 const char* topic_light_switch = "jarvis/light_switch/1";
+WiFiUDP ntpUDP;
+const long utcOffsetInSeconds = 25200;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
 
 #ifndef CREDENTIALS_H
   // Update these with values suitable for your network.
@@ -53,7 +60,8 @@ void setup() {
   
   digitalWrite(BUILTIN_LED, HIGH); // reset LED state to OFF
   Serial.println("Setup done. Entering Deep Sleep...");
-  ESP.deepSleep(5e6); // enter deep sleep mode
+  ESP.deepSleep(3600e6); // enter deep sleep mode for interval seconds
+  // ESP.deepSleep(5e6); // interval only 5 seconds for testing purposes
 }
 
 void loop() {
@@ -88,6 +96,19 @@ void setup_wifi() {
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+
+  timeClient.begin();
+  print_time();
+}
+
+void print_time() {
+  timeClient.update();
+  String current_time = timeClient.getFormattedTime();
+  Serial.print("Current time is: ");
+  Serial.println(current_time);
+
+  String current_hour = current_time.substring(0,3);
+  Serial.println(current_hour.toInt());
 }
 
 void setup_mqtt() {
@@ -113,15 +134,30 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
 
-  // Switch on the LED if an 1 was received as first character
+  #ifdef automate_light_switch
+    // will check for current time, then turn off light if the time is right
+    timeClient.update();
+    String current_time = timeClient.getFormattedTime();
+    String current_hour = current_time.substring(0,3);
+
+    if (((current_hour.toInt() <= 23) && (current_hour.toInt() >= 18) || ((current_hour.toInt() >= 0 && current_hour.toInt() <= 6)) {
+      // if 18:00 or more, turn on lights
+      switch_change_on(true);
+      Serial.println("lights: on");
+    } else {
+      switch_change_on(false);
+      Serial.println("lights: off");
+    }
+  }
+  #else
   if ((char)payload[0] == '1') {
     switch_change_on(true);
-    //digitalWrite(BUILTIN_LED, LOW);
+      Serial.println("lights: on");
   } else if ((char)payload[0] == '0') {
-    switch_change_on(false);  // Turn the LED off by making the voltage HIGH
-    //digitalWrite(BUILTIN_LED, HIGH);
+    switch_change_on(false);
+      Serial.println("lights: off");
   }
-
+  #endif
 }
 
 void reconnect() {
