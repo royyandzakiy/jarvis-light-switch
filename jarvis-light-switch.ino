@@ -8,7 +8,10 @@
 /*====================================*/
 // global variables
 
-// #define automate_light_switch
+#define MQTT_LIGHT_SWITCH true
+#define AUTOMATE_LIGHT_SWITCH false // change to true if want to automate light switch with predefined time
+  #define AUTOMATE_LIGHT_SWITCH_MORNING 6 // choose what time should the lights turn OFF at the morning
+  #define AUTOMATE_LIGHT_SWITCH_NIGHT 18 // choose what time should the lights turn ON at the night
 
 // WIFI & MQTT
 WiFiClient espClient;
@@ -37,9 +40,11 @@ Servo servo; // Create a servo object
 void setup_wifi();
 void callback(char*, byte*, unsigned int);
 void reconnect();
+void loop_light_switch();
 
 void set_mqtt();
 void check_mqtt(long interval);
+void mqtt_publish(char*, byte*, unsigned int);
 
 void switch_change_on(bool);
 void setup_servo();
@@ -56,6 +61,7 @@ void setup() {
   setup_wifi();
   setup_servo();
   setup_mqtt();
+  loop_light_switch();
   check_mqtt(10000); // check for interval amount of time
   
   digitalWrite(BUILTIN_LED, HIGH); // reset LED state to OFF
@@ -69,6 +75,26 @@ void loop() {
     reconnect();
   }
   client.loop();
+}
+
+void loop_light_switch() {
+  #if AUTOMATE_LIGHT_SWITCH
+    // will check for current time, then turn off light if the time is right
+    timeClient.update();
+    String current_time = timeClient.getFormattedTime();
+    String current_hour = current_time.substring(0,3);
+  
+    if (((current_hour.toInt() >= 0 && current_hour.toInt() <= AUTOMATE_LIGHT_SWITCH_MORNING) || ((current_hour.toInt() >= AUTOMATE_LIGHT_SWITCH_NIGHT) && (current_hour.toInt() <= 23)) {
+      // if 18:00 or more, turn on lights
+      switch_change_on(true);
+      Serial.println("lights: on");
+      mqtt_publish(topic_light_switch, "1", 1);
+    } else {
+      switch_change_on(false);
+      Serial.println("lights: off");
+      mqtt_publish(topic_light_switch, "0", 0);
+    }
+  #endif
 }
 
 /*====================================*/
@@ -134,30 +160,25 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
 
-  #ifdef automate_light_switch
-    // will check for current time, then turn off light if the time is right
-    timeClient.update();
-    String current_time = timeClient.getFormattedTime();
-    String current_hour = current_time.substring(0,3);
-
-    if (((current_hour.toInt() <= 23) && (current_hour.toInt() >= 18) || ((current_hour.toInt() >= 0 && current_hour.toInt() <= 6)) {
-      // if 18:00 or more, turn on lights
-      switch_change_on(true);
-      Serial.println("lights: on");
-    } else {
-      switch_change_on(false);
-      Serial.println("lights: off");
-    }
-  }
-  #else
+  #if MQTT_LIGHT_SWITCH
   if ((char)payload[0] == '1') {
     switch_change_on(true);
-      Serial.println("lights: on");
+    Serial.println("lights: on");
   } else if ((char)payload[0] == '0') {
     switch_change_on(false);
-      Serial.println("lights: off");
+    Serial.println("lights: off");
   }
   #endif
+}
+
+void mqtt_publish(char* topic, byte* payload, unsigned int length) {
+  // Allocate the correct amount of memory for the payload copy
+  byte* p = (byte*)malloc(length);
+  // Copy the payload to the new buffer
+  memcpy(p,payload,length);
+  client.publish(topic, p, length);
+  // Free the memory
+  free(p);
 }
 
 void reconnect() {
