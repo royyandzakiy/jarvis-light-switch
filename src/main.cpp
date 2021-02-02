@@ -4,6 +4,8 @@
 #include <Servo.h> 
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+#include <TimeLib.h>
+#include <TimeAlarms.h>
 #include "credentials.h"
 
 /*====================================*/
@@ -14,6 +16,8 @@ bool light_switch_time_automate = true; // change to true if want to automate li
   #define LIGHT_SWITCH_TIME_AUTOMATE_MORNING 6 // choose what time should the lights turn OFF at the morning
   #define LIGHT_SWITCH_TIME_AUTOMATE_NIGHT 18 // choose what time should the lights turn ON at the night
 bool mode_deep_sleep = false;
+long last_hour = 0;
+long last_millis = 0;
 
 // pins for manual settings
 #define LIGHT_SWITCH_TIME_AUTOMATE_PIN 14
@@ -80,9 +84,10 @@ void setup() {
 
   if (mode_deep_sleep) {
     Serial.println("Entering Deep Sleep...");
-    ESP.deepSleep(3600e6); // enter deep sleep mode for interval seconds
-    // ESP.deepSleep(5e6); // interval only 5 seconds for testing purposes
+    ESP.deepSleep(3600e6); // enter deep sleep mode for 3600 interval seconds
   }
+
+  update_time();
 }
 
 void loop() {
@@ -90,23 +95,46 @@ void loop() {
     reconnect();
   }
   client.loop();
-  loop_light_switch();
+  loop_light_switch(); // put into alarm interval
+  update_time();
+}
+
+void update_time() {
+  if (((millis() - last_millis) > 3600) && ((hour() - last_hour) != 1)) {
+    // only check again to timeClient if the time is off, which is if the hour reduced by the hour before is not 1
+    // gives a little bit of redundancy so there will be a check at least one times a day 
+    timeClient.update();
+
+    String current_time = timeClient.getFormattedTime();
+    int current_hour = current_time.substring(0,3).toInt();
+    int current_minute = current_time.substring(3,5).toInt();
+    setTime(current_hour,current_minute,0,1,1,11);
+    
+    last_hour = hour();
+    last_millis = millis();
+    last_hour = current_hour;
+  }
 }
 
 void loop_light_switch() {
   if (light_switch_time_automate) {
     // will check for current time, then turn off light if the time is right
-    timeClient.update();
-    String current_time = timeClient.getFormattedTime();
-    String current_hour = current_time.substring(0,3);
-  
-    if (((current_hour.toInt() >= 0 && current_hour.toInt() <= LIGHT_SWITCH_TIME_AUTOMATE_MORNING) || ((current_hour.toInt() >= LIGHT_SWITCH_TIME_AUTOMATE_NIGHT) && (current_hour.toInt() <= 23)))) {
-      // if 18:00 or more, turn on lights
-      Serial.println("Night Time: On");
-      mqtt_publish(topic_light_switch, "1", 1);
-    } else {
-      Serial.println("Night Time: Off");
-      mqtt_publish(topic_light_switch, "0", 0);
+    if ((millis() - last_millis) > 3600) {
+      // only check after an hour has passed away
+      timeClient.update();
+      last_millis = millis();
+
+      String current_time = timeClient.getFormattedTime();
+      String current_hour = current_time.substring(0,3);
+    
+      if (((current_hour.toInt() >= 0 && current_hour.toInt() <= LIGHT_SWITCH_TIME_AUTOMATE_MORNING) || ((current_hour.toInt() >= LIGHT_SWITCH_TIME_AUTOMATE_NIGHT) && (current_hour.toInt() <= 23)))) {
+        // if 18:00 or more, turn on lights
+        Serial.println("Night Time: On");
+        mqtt_publish(topic_light_switch, "1", 1);
+      } else {
+        Serial.println("Night Time: Off");
+        mqtt_publish(topic_light_switch, "0", 0);
+      }
     }
   }
 }
