@@ -54,6 +54,7 @@ void reconnect();
 void loop_light_switch();
 void print_time();
 void setup_modes();
+void update_time();
 
 void set_mqtt();
 void check_mqtt(unsigned long);
