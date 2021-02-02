@@ -1,3 +1,11 @@
+'''
+    This script is used to generate the .ino file version of this project.
+    It is generated to ease people without platform io to still tinker with
+    this project.
+
+    - Royyan
+'''
+
 # Importing the modules
 import os
 import shutil

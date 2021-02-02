@@ -46,7 +46,7 @@ void loop_light_switch();
 void print_time();
 
 void set_mqtt();
-void check_mqtt(long interval);
+void check_mqtt(unsigned long);
 void mqtt_publish(char*, byte*, unsigned int);
 
 void switch_change_on(bool);
@@ -147,8 +147,8 @@ void setup_mqtt() {
   reconnect();
 }
 
-void check_mqtt(long interval) { // check for interval amount of time
-  int start_count = millis();
+void check_mqtt(unsigned long interval) { // check for interval amount of time
+  unsigned long start_count = millis();
   while ((millis() - start_count) < interval) {
     client.loop();
   }
@@ -158,7 +158,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
-  for (int i = 0; i < length; i++) {
+  for (unsigned int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
