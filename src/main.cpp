@@ -83,12 +83,13 @@ void setup() {
   digitalWrite(BUILTIN_LED, HIGH); // reset LED state to OFF
   Serial.println("Setup done.");
 
-  if (mode_deep_sleep) {
+  if (mode_deep_sleep) { // default is false, except if set in setup_modes()
     Serial.println("Entering Deep Sleep...");
     ESP.deepSleep(3600e6); // enter deep sleep mode for 3600 interval seconds
   }
 
   update_time();
+  print_time();
 }
 
 void loop() {
@@ -96,10 +97,33 @@ void loop() {
     reconnect();
   }
   client.loop();
-  loop_light_switch(); // put into alarm interval
   update_time();
+  loop_light_switch();
 }
 
+/*====================================*/
+// Functions
+
+// MODES
+void setup_modes() {
+  // MODE: LIGHT_SWITCH_TIME_AUTOMATE (default true)
+  pinMode(LIGHT_SWITCH_TIME_AUTOMATE_PIN, OUTPUT);    // output pin for light_switch_time_automate false
+  pinMode(12, INPUT);     // input pin for light_switch_time_automate false
+  digitalWrite(LIGHT_SWITCH_TIME_AUTOMATE_PIN, HIGH);
+  if (digitalRead(12) > 0) {
+    light_switch_time_automate = false;
+  }
+  
+  // MODE: DEEP_SLEEP (default false)
+  pinMode(MODE_DEEP_SLEEP_PIN, OUTPUT);     // output pin for mode_deep_sleep true
+  pinMode(4, INPUT);      // input pin for mode_deep_sleep true
+  digitalWrite(MODE_DEEP_SLEEP_PIN, HIGH);
+  if (digitalRead(4) > 0) {
+    mode_deep_sleep = true;
+  }
+}
+
+// TIME
 void update_time() {
   if (((millis() - last_millis) > 3600) && ((hour() - last_hour) != 1)) {
     // only check again to timeClient if the time is off, which is if the hour reduced by the hour before is not 1
@@ -117,31 +141,14 @@ void update_time() {
   }
 }
 
-void loop_light_switch() {
-  if (light_switch_time_automate) {
-    // will check for current time, then turn off light if the time is right
-    if ((millis() - last_millis) > 3600) {
-      // only check after an hour has passed away
-      timeClient.update();
-      last_millis = millis();
+void print_time() {
+  String current_time = timeClient.getFormattedTime();
+  Serial.print("Current time is: ");
+  Serial.println(current_time);
 
-      String current_time = timeClient.getFormattedTime();
-      String current_hour = current_time.substring(0,3);
-    
-      if (((current_hour.toInt() >= 0 && current_hour.toInt() <= LIGHT_SWITCH_TIME_AUTOMATE_MORNING) || ((current_hour.toInt() >= LIGHT_SWITCH_TIME_AUTOMATE_NIGHT) && (current_hour.toInt() <= 23)))) {
-        // if 18:00 or more, turn on lights
-        Serial.println("Night Time: On");
-        mqtt_publish(topic_light_switch, "1", 1);
-      } else {
-        Serial.println("Night Time: Off");
-        mqtt_publish(topic_light_switch, "0", 0);
-      }
-    }
-  }
+  String current_hour = current_time.substring(0,3);
+  Serial.println(current_hour.toInt());
 }
-
-/*====================================*/
-// Functions
 
 // WIFI & MQTT
 void setup_wifi() {
@@ -167,35 +174,6 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 
   timeClient.begin();
-  print_time();
-}
-
-void setup_modes() {
-  // MODE: LIGHT_SWITCH_TIME_AUTOMATE (default true)
-  pinMode(LIGHT_SWITCH_TIME_AUTOMATE_PIN, OUTPUT);    // output pin for light_switch_time_automate false
-  pinMode(12, INPUT);     // input pin for light_switch_time_automate false
-  digitalWrite(LIGHT_SWITCH_TIME_AUTOMATE_PIN, HIGH);
-  if (digitalRead(12) > 0) {
-    light_switch_time_automate = false;
-  }
-  
-  // MODE: DEEP_SLEEP (default false)
-  pinMode(MODE_DEEP_SLEEP_PIN, OUTPUT);     // output pin for mode_deep_sleep true
-  pinMode(4, INPUT);      // input pin for mode_deep_sleep true
-  digitalWrite(MODE_DEEP_SLEEP_PIN, HIGH);
-  if (digitalRead(4) > 0) {
-    mode_deep_sleep = true;
-  }
-}
-
-void print_time() {
-  timeClient.update();
-  String current_time = timeClient.getFormattedTime();
-  Serial.print("Current time is: ");
-  Serial.println(current_time);
-
-  String current_hour = current_time.substring(0,3);
-  Serial.println(current_hour.toInt());
 }
 
 void setup_mqtt() {
@@ -260,6 +238,20 @@ void reconnect() {
       Serial.println(" try again in 5 seconds");
       // Wait 5 seconds before retrying
       delay(5000);
+    }
+  }
+}
+
+void loop_light_switch() {
+  if (light_switch_time_automate) {
+    // will check for current time, then turn off light if the time is right
+    if (((hour() >= 0 && hour() <= LIGHT_SWITCH_TIME_AUTOMATE_MORNING) || ((hour() >= LIGHT_SWITCH_TIME_AUTOMATE_NIGHT) && (hour() <= 23)))) {
+      // if 18:00 or more, turn on lights
+      Serial.println("Night Time: On");
+      mqtt_publish(topic_light_switch, "1", 1);
+    } else {
+      Serial.println("Night Time: Off");
+      mqtt_publish(topic_light_switch, "0", 0);
     }
   }
 }
