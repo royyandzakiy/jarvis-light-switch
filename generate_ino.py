@@ -15,13 +15,13 @@ src_dir = start_dir+"/src" #get the current working dir
 print(start_dir)
 
 # set dest_dir
-dest_dir = start_dir+"/ino"
+dest_dir = start_dir+"/jarvis-light-switch"
 
 # check if path exists
 if (not os.path.isdir(dest_dir)):
     # create a dir where we want to copy and rename
-    dest_dir = os.mkdir('ino')
-    dest_dir = start_dir+"/ino"
+    dest_dir = os.mkdir('jarvis-light-switch')
+    dest_dir = start_dir+"/jarvis-light-switch"
 
 src_file = os.path.join(src_dir, 'main.cpp')
 shutil.copy(src_file,dest_dir) #copy the file to destination dir

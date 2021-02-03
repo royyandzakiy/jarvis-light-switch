@@ -9,7 +9,7 @@
 #include "credentials.h"
 
 /*====================================*/
-// global variables
+// Global Variables
 
 bool light_switch_mqtt = true;
 bool light_switch_time_automate = true; // change to true if want to automate light switch with predefined time
@@ -60,11 +60,11 @@ void set_mqtt();
 void check_mqtt(unsigned long);
 void mqtt_publish(const char*, const char*, unsigned int);
 
-void switch_change_on(bool);
+void switch_turn_on(bool);
 void setup_servo();
 
 /*====================================*/
-// main code
+// Main Code
 
 void setup() {
   pinMode(BUILTIN_LED, OUTPUT);    // Initialize the BUILTIN_LED pin as an output
@@ -150,7 +150,7 @@ void print_time() {
   Serial.println(current_hour.toInt());
 }
 
-// WIFI & MQTT
+// WIFI
 void setup_wifi() {
   delay(10);
   // We start by connecting to a WiFi network
@@ -176,6 +176,7 @@ void setup_wifi() {
   timeClient.begin();
 }
 
+// MQTT
 void setup_mqtt() {
   // mqtt
   client.setServer(mqtt_server, 1883);
@@ -201,10 +202,10 @@ void callback(const char* topic, byte* payload, unsigned int length) {
 
   if (light_switch_mqtt) {
     if ((char)payload[0] == '1') {
-      switch_change_on(true);
+      switch_turn_on(true);
       Serial.println("lights: on");
     } else if ((char)payload[0] == '0') {
-      switch_change_on(false);
+      switch_turn_on(false);
       Serial.println("lights: off");
     }
   }
@@ -257,7 +258,12 @@ void loop_light_switch() {
 }
 
 // SERVO
-void switch_change_on(bool turn_on) {
+void setup_servo() { 
+   // We need to attach the servo to the used pin number 
+   servo.attach(servoPin); 
+}
+
+void switch_turn_on(bool turn_on) {
   if (turn_on) {
     servo.write(0);
     delay(500);
@@ -265,9 +271,4 @@ void switch_change_on(bool turn_on) {
     servo.write(30);
     delay(500);
   }
-}
-
-void setup_servo() { 
-   // We need to attach the servo to the used pin number 
-   servo.attach(servoPin); 
 }
