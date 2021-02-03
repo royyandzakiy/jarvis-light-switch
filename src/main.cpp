@@ -24,13 +24,17 @@ bool mode_timebased_automate = true; // change to true if want to automate light
 long last_hour = 0;
 long last_millis = 0;
 
-// WIFI & MQTT
-WiFiClient espClient;
-PubSubClient client(espClient);
-const char* topic_light_switch = "jarvis/light_switch/1";
+// NTP TIME
 WiFiUDP ntpUDP;
 const long utcOffsetInSeconds = 25200; // offset for Jakarta/Indonesia is UTC+7 = 3600 * 7 seconds
 NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
+
+// WIFI & MQTT
+WiFiClient espClient;
+PubSubClient client(espClient);
+const char* topic_light_switch_1 = "jarvis/light_switch/1"; // you can create as many more lights as you want
+// const char* topic_light_switch_2 = "jarvis/light_switch/2"; // example of light #2
+// const char* topic_light_switch_3 = "jarvis/light_switch/2"; // example of light #3
 
 #ifndef CREDENTIALS_H
   // Update these with values suitable for your network.
@@ -64,7 +68,6 @@ void mqtt_publish(const char*, const char*, unsigned int);
 void update_time();
 void print_time();
 void printDigits(int);
-
 
 void switch_turn_on(bool);
 void setup_servo();
@@ -278,7 +281,7 @@ void reconnect() {
     if (client.connect(clientId.c_str()), mqtt_user, mqtt_pass) {
       Serial.println("connected");
       // ... and resubscribe
-      client.subscribe(topic_light_switch);
+      client.subscribe(topic_light_switch_1);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -294,10 +297,10 @@ void loop_timebased_automate() {
   if (((hour() >= 0 && hour() <= MODE_TIMEBASED_AUTOMATE_MORNING) || ((hour() >= MODE_TIMEBASED_AUTOMATE_NIGHT) && (hour() <= 23)))) {
     // if 18:00 or more, turn on lights
     Serial.println("Night Time: On");
-    mqtt_publish(topic_light_switch, "1", 1);
+    mqtt_publish(topic_light_switch_1, "1", 1);
   } else {
     Serial.println("Night Time: Off");
-    mqtt_publish(topic_light_switch, "0", 0);
+    mqtt_publish(topic_light_switch_1, "0", 0);
   }
 }
 
