@@ -46,21 +46,28 @@ Servo servo; // Create a servo object
 /*====================================*/
 // Prototypes
 
+void setup_modes();
+
 void setup_wifi();
+
 void setup_mqtt();
 void callback(const char*, byte*, unsigned int);
 void reconnect();
 void loop_timebased_automate();
-void print_time();
-void setup_modes();
-void update_time();
 
 void set_mqtt();
 void check_mqtt(unsigned long);
 void mqtt_publish(const char*, const char*, unsigned int);
 
+void update_time();
+void print_time();
+void printDigits(int);
+
+
 void switch_turn_on(bool);
 void setup_servo();
+
+void blink_once();
 
 /*====================================*/
 // Main Code
@@ -77,7 +84,8 @@ void setup() {
   setup_servo();
   setup_mqtt();
   setup_modes();
-  check_mqtt(10000); // check for interval amount of time
+
+  check_mqtt(3000); // check for interval amount of time
   
   digitalWrite(BUILTIN_LED, HIGH); // reset LED state to OFF
   Serial.println("Setup done.");
@@ -88,16 +96,39 @@ void setup() {
   }
 
   update_time();
-  print_time();
+
+  Alarm.timerRepeat(3, blink_once); // blinks every 3 seconds
 }
 
 void loop() {
+  // MQTT
   if (!client.connected()) {
     reconnect();
   }
   client.loop();
-  update_time();
-  loop_timebased_automate();
+
+  // TIME
+  if (((millis() - last_millis) > 3600000) && ((hour() - last_hour) != 1)) {
+    // only check time under 2 conditions: (1) if an hour has passed, and (2) if the last hour and current hour 
+    // is NOT different by 1 (which means it has been off). also gives a little bit of redundancy so there will 
+    // be a check at least one times a day at change of day 
+    Serial.println(millis() - last_millis);
+    update_time();
+  }
+  Alarm.delay(1); // mandatory to add this so the alarm functions will run
+  
+  // LIGHT SWITCH
+  if (mode_timebased_automate) {
+    loop_timebased_automate();
+  }
+}
+
+void blink_once() {
+  digitalWrite(BUILTIN_LED, LOW);
+  delay(500);
+  digitalWrite(BUILTIN_LED, HIGH);
+  delay(500);
+  // Serial.println("blink_once");
 }
 
 /*====================================*/
@@ -124,29 +155,35 @@ void setup_modes() {
 
 // TIME
 void update_time() {
-  if (((millis() - last_millis) > 3600) && ((hour() - last_hour) != 1)) {
-    // only check again to timeClient if the time is off, which is if the hour reduced by the hour before is not 1
-    // gives a little bit of redundancy so there will be a check at least one times a day 
-    timeClient.update();
+  Serial.println("update_time");
+  timeClient.update();
 
-    String current_time = timeClient.getFormattedTime();
-    int current_hour = current_time.substring(0,3).toInt();
-    int current_minute = current_time.substring(3,5).toInt();
-    setTime(current_hour,current_minute,0,1,1,11);
-    
-    last_hour = hour();
-    last_millis = millis();
-    last_hour = current_hour;
-  }
+  String current_time = timeClient.getFormattedTime();
+  int current_hour = current_time.substring(0,3).toInt();
+  int current_minute = current_time.substring(3,5).toInt();
+  setTime(current_hour,current_minute,0,1,1,11);
+  
+  last_hour = hour();
+  last_millis = millis();
+  last_hour = current_hour;
+
+  print_time();
 }
 
 void print_time() {
   String current_time = timeClient.getFormattedTime();
   Serial.print("Current time is: ");
-  Serial.println(current_time);
+  Serial.print(hour());
+  printDigits(minute());
+  printDigits(second());
+  Serial.println();
+}
 
-  String current_hour = current_time.substring(0,3);
-  Serial.println(current_hour.toInt());
+void printDigits(int digits) {
+  Serial.print(":");
+  if (digits < 10)
+    Serial.print('0');
+  Serial.print(digits);
 }
 
 // WIFI
@@ -243,16 +280,14 @@ void reconnect() {
 }
 
 void loop_timebased_automate() {
-  if (mode_timebased_automate) {
-    // will check for current time, then turn off light if the time is right
-    if (((hour() >= 0 && hour() <= MODE_TIMEBASED_AUTOMATE_MORNING) || ((hour() >= MODE_TIMEBASED_AUTOMATE_NIGHT) && (hour() <= 23)))) {
-      // if 18:00 or more, turn on lights
-      Serial.println("Night Time: On");
-      mqtt_publish(topic_light_switch, "1", 1);
-    } else {
-      Serial.println("Night Time: Off");
-      mqtt_publish(topic_light_switch, "0", 0);
-    }
+  // will check for current time, then turn off light if the time is right
+  if (((hour() >= 0 && hour() <= MODE_TIMEBASED_AUTOMATE_MORNING) || ((hour() >= MODE_TIMEBASED_AUTOMATE_NIGHT) && (hour() <= 23)))) {
+    // if 18:00 or more, turn on lights
+    Serial.println("Night Time: On");
+    mqtt_publish(topic_light_switch, "1", 1);
+  } else {
+    Serial.println("Night Time: Off");
+    mqtt_publish(topic_light_switch, "0", 0);
   }
 }
 
