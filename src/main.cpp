@@ -29,7 +29,7 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 const char* topic_light_switch = "jarvis/light_switch/1";
 WiFiUDP ntpUDP;
-const long utcOffsetInSeconds = 25200;
+const long utcOffsetInSeconds = 25200; // offset for Jakarta/Indonesia is UTC+7 = 3600 * 7 seconds
 NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
 
 #ifndef CREDENTIALS_H
