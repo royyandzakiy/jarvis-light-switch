@@ -11,17 +11,16 @@
 /*====================================*/
 // Global Variables
 
-bool light_switch_mqtt = true;
-bool light_switch_time_automate = true; // change to true if want to automate light switch with predefined time
-  #define LIGHT_SWITCH_TIME_AUTOMATE_MORNING 6 // choose what time should the lights turn OFF at the morning
-  #define LIGHT_SWITCH_TIME_AUTOMATE_NIGHT 18 // choose what time should the lights turn ON at the night
+// MODE SETUP
+#define MODE_TIMEBASED_AUTOMATE_PIN 14
+#define MODE_DEEP_SLEEP_PIN 5
+bool mode_switch_with_mqtt = true;
 bool mode_deep_sleep = false;
+bool mode_timebased_automate = true; // change to true if want to automate light switch with predefined time
+  #define MODE_TIMEBASED_AUTOMATE_MORNING 6 // choose what time should the lights turn OFF at the morning
+  #define MODE_TIMEBASED_AUTOMATE_NIGHT 18 // choose what time should the lights turn ON at the night
 long last_hour = 0;
 long last_millis = 0;
-
-// pins for manual settings
-#define LIGHT_SWITCH_TIME_AUTOMATE_PIN 14
-#define MODE_DEEP_SLEEP_PIN 5
 
 // WIFI & MQTT
 WiFiClient espClient;
@@ -41,7 +40,7 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
 #endif
 
 // SERVO
-int servoPin = 2; // Declare the Servo pin  2 = D4
+#define SERVO_PIN 2 // Declare the Servo pin  2 = D4
 Servo servo; // Create a servo object 
 
 /*====================================*/
@@ -51,7 +50,7 @@ void setup_wifi();
 void setup_mqtt();
 void callback(const char*, byte*, unsigned int);
 void reconnect();
-void loop_light_switch();
+void loop_timebased_automate();
 void print_time();
 void setup_modes();
 void update_time();
@@ -98,7 +97,7 @@ void loop() {
   }
   client.loop();
   update_time();
-  loop_light_switch();
+  loop_timebased_automate();
 }
 
 /*====================================*/
@@ -106,12 +105,12 @@ void loop() {
 
 // MODES
 void setup_modes() {
-  // MODE: LIGHT_SWITCH_TIME_AUTOMATE (default true)
-  pinMode(LIGHT_SWITCH_TIME_AUTOMATE_PIN, OUTPUT);    // output pin for light_switch_time_automate false
-  pinMode(12, INPUT);     // input pin for light_switch_time_automate false
-  digitalWrite(LIGHT_SWITCH_TIME_AUTOMATE_PIN, HIGH);
+  // MODE: mode_timebased_automate (default true)
+  pinMode(MODE_TIMEBASED_AUTOMATE_PIN, OUTPUT);    // output pin for mode_timebased_automate false
+  pinMode(12, INPUT);     // input pin for mode_timebased_automate false
+  digitalWrite(MODE_TIMEBASED_AUTOMATE_PIN, HIGH);
   if (digitalRead(12) > 0) {
-    light_switch_time_automate = false;
+    mode_timebased_automate = false;
   }
   
   // MODE: DEEP_SLEEP (default false)
@@ -200,7 +199,7 @@ void callback(const char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
 
-  if (light_switch_mqtt) {
+  if (mode_switch_with_mqtt) {
     if ((char)payload[0] == '1') {
       switch_turn_on(true);
       Serial.println("lights: on");
@@ -243,10 +242,10 @@ void reconnect() {
   }
 }
 
-void loop_light_switch() {
-  if (light_switch_time_automate) {
+void loop_timebased_automate() {
+  if (mode_timebased_automate) {
     // will check for current time, then turn off light if the time is right
-    if (((hour() >= 0 && hour() <= LIGHT_SWITCH_TIME_AUTOMATE_MORNING) || ((hour() >= LIGHT_SWITCH_TIME_AUTOMATE_NIGHT) && (hour() <= 23)))) {
+    if (((hour() >= 0 && hour() <= MODE_TIMEBASED_AUTOMATE_MORNING) || ((hour() >= MODE_TIMEBASED_AUTOMATE_NIGHT) && (hour() <= 23)))) {
       // if 18:00 or more, turn on lights
       Serial.println("Night Time: On");
       mqtt_publish(topic_light_switch, "1", 1);
@@ -260,7 +259,7 @@ void loop_light_switch() {
 // SERVO
 void setup_servo() { 
    // We need to attach the servo to the used pin number 
-   servo.attach(servoPin); 
+   servo.attach(SERVO_PIN); 
 }
 
 void switch_turn_on(bool turn_on) {
