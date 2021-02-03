@@ -12,8 +12,10 @@
 // Global Variables
 
 // MODE SETUP
-#define MODE_TIMEBASED_AUTOMATE_PIN 14
-#define MODE_DEEP_SLEEP_PIN 5
+#define MODE_TIMEBASED_AUTOMATE_PIN_OUTPUT 10 // NodeMCU GPIO14 == SD3
+#define MODE_TIMEBASED_AUTOMATE_PIN_INPUT 9 // NodeMCU GPIO12 == SD2
+#define MODE_DEEP_SLEEP_PIN_OUTPUT 5 // NodeMCU GPIO12 == D1
+#define MODE_DEEP_SLEEP_PIN_INPUT 4 // NodeMCU GPIO12 == D2
 bool mode_switch_with_mqtt = true;
 bool mode_deep_sleep = false;
 bool mode_timebased_automate = true; // change to true if want to automate light switch with predefined time
@@ -80,10 +82,10 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Setup begin...");
   
-  setup_wifi();
   setup_servo();
-  setup_mqtt();
   setup_modes();
+  setup_wifi();
+  setup_mqtt();
 
   check_mqtt(3000); // check for interval amount of time
   
@@ -136,21 +138,29 @@ void blink_once() {
 
 // MODES
 void setup_modes() {
-  // MODE: mode_timebased_automate (default true)
-  pinMode(MODE_TIMEBASED_AUTOMATE_PIN, OUTPUT);    // output pin for mode_timebased_automate false
-  pinMode(12, INPUT);     // input pin for mode_timebased_automate false
-  digitalWrite(MODE_TIMEBASED_AUTOMATE_PIN, HIGH);
-  if (digitalRead(12) > 0) {
+  // MODE: TIMEBASED_AUTOMATE (default true)
+  pinMode(MODE_TIMEBASED_AUTOMATE_PIN_OUTPUT, OUTPUT);    // output pin for mode_timebased_automate false
+  pinMode(MODE_TIMEBASED_AUTOMATE_PIN_INPUT, INPUT);     // input pin for mode_timebased_automate false
+  digitalWrite(MODE_TIMEBASED_AUTOMATE_PIN_OUTPUT, HIGH);
+  if (digitalRead(MODE_TIMEBASED_AUTOMATE_PIN_INPUT) > 0) {
+    Serial.println("mode_timebased_automate = off");
     mode_timebased_automate = false;
+  } else {
+    Serial.println("mode_timebased_automate = on (default)");
   }
+  Serial.println(digitalRead(MODE_TIMEBASED_AUTOMATE_PIN_INPUT));
   
   // MODE: DEEP_SLEEP (default false)
-  pinMode(MODE_DEEP_SLEEP_PIN, OUTPUT);     // output pin for mode_deep_sleep true
-  pinMode(4, INPUT);      // input pin for mode_deep_sleep true
-  digitalWrite(MODE_DEEP_SLEEP_PIN, HIGH);
-  if (digitalRead(4) > 0) {
+  pinMode(MODE_DEEP_SLEEP_PIN_OUTPUT, OUTPUT);     // output pin for mode_deep_sleep true
+  pinMode(MODE_DEEP_SLEEP_PIN_INPUT, INPUT);      // input pin for mode_deep_sleep true
+  digitalWrite(MODE_DEEP_SLEEP_PIN_OUTPUT, HIGH);
+  if (digitalRead(MODE_DEEP_SLEEP_PIN_INPUT) > 0) {
+    Serial.println("mode_deep_sleep = on");
     mode_deep_sleep = true;
+  } else {
+    Serial.println("mode_deep_sleep = off (default)");
   }
+  Serial.println(digitalRead(MODE_DEEP_SLEEP_PIN_INPUT));
 }
 
 // TIME
