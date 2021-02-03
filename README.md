@@ -26,7 +26,7 @@ Connect Servo to NodeMCU GPIO 2, or same as D4 on the board
 
 ### ...Continue Getting Started
 
-- Create file `credentials.h` and fill with the code below, fill in variables with your WIFI and MQTT settings
+- Create file `credentials.h` and fill with the code below, fill in variables with your WIFI and MQTT settings (Alternatively, just create an empty `credentials.h`, then fill in the CREDENTIALS within the `main.cpp` or `jarvis-light-switch-ino.ino`. But nah, just stick to the main plan)
 
 ```
   #define CREDENTIALS_H
