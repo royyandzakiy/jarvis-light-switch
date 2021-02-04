@@ -12,8 +12,8 @@
 // Global Variables
 
 // MODE SETUP
-#define MODE_TIMEBASED_AUTOMATE_PIN_OUTPUT 10 // NodeMCU GPIO10 == SD3
-#define MODE_TIMEBASED_AUTOMATE_PIN_INPUT 9 // NodeMCU GPIO9 == SD2
+#define MODE_TIMEBASED_AUTOMATE_PIN_OUTPUT 14 // NodeMCU GPIO10 == SD3
+#define MODE_TIMEBASED_AUTOMATE_PIN_INPUT 12 // NodeMCU GPIO9 == SD2
 #define MODE_DEEP_SLEEP_PIN_OUTPUT 5 // NodeMCU GPIO12 == D1
 #define MODE_DEEP_SLEEP_PIN_INPUT 4 // NodeMCU GPIO12 == D2
 bool mode_switch_with_mqtt = true;
@@ -64,7 +64,10 @@ void loop_timebased_automate();
 void set_mqtt();
 void check_mqtt(unsigned long);
 void mqtt_publish(const char*, const char*, unsigned int);
+void lights_on();
+void lights_off();
 
+void loop_time();
 void update_time();
 void print_time();
 void printDigits(int);
@@ -102,6 +105,11 @@ void setup() {
 
   update_time();
 
+  if (mode_timebased_automate) {
+    Alarm.alarmRepeat(MODE_TIMEBASED_AUTOMATE_MORNING,0,0, lights_on);
+    Alarm.alarmRepeat(MODE_TIMEBASED_AUTOMATE_NIGHT,0,0, lights_off);
+  }
+
   Alarm.timerRepeat(3, blink_once); // blinks every 3 seconds
 }
 
@@ -113,27 +121,9 @@ void loop() {
   client.loop();
 
   // TIME
-  if (((millis() - last_millis) > 3600000) && ((hour() - last_hour) != 1)) {
-    // only check time under 2 conditions: (1) if an hour has passed, and (2) if the last hour and current hour 
-    // is NOT different by 1 (which means it has been off). also gives a little bit of redundancy so there will 
-    // be a check at least one times a day at change of day 
-    Serial.println(millis() - last_millis);
-    update_time();
-  }
-  Alarm.delay(1); // mandatory to add this so the alarm functions will run
-  
-  // LIGHT SWITCH
-  if (mode_timebased_automate) {
-    loop_timebased_automate();
-  }
-}
+  loop_time();
 
-void blink_once() {
-  digitalWrite(BUILTIN_LED, LOW);
-  delay(500);
-  digitalWrite(BUILTIN_LED, HIGH);
-  delay(500);
-  // Serial.println("blink_once");
+  Alarm.delay(1); // mandatory to add this so the alarm functions will run
 }
 
 /*====================================*/
@@ -142,31 +132,43 @@ void blink_once() {
 // MODES
 void setup_modes() {
   // MODE: TIMEBASED_AUTOMATE (default true)
+  pinMode(MODE_TIMEBASED_AUTOMATE_PIN_INPUT, INPUT_PULLUP);     // input pin for mode_timebased_automate false
   pinMode(MODE_TIMEBASED_AUTOMATE_PIN_OUTPUT, OUTPUT);    // output pin for mode_timebased_automate false
-  pinMode(MODE_TIMEBASED_AUTOMATE_PIN_INPUT, INPUT);     // input pin for mode_timebased_automate false
-  digitalWrite(MODE_TIMEBASED_AUTOMATE_PIN_OUTPUT, HIGH);
-  if (digitalRead(MODE_TIMEBASED_AUTOMATE_PIN_INPUT) > 0) {
+  digitalWrite(MODE_TIMEBASED_AUTOMATE_PIN_OUTPUT, LOW);
+  Serial.print("digitalRead(MODE_TIMEBASED_AUTOMATE_PIN_INPUT): ");
+  Serial.println(digitalRead(MODE_TIMEBASED_AUTOMATE_PIN_INPUT));
+  if (digitalRead(MODE_TIMEBASED_AUTOMATE_PIN_INPUT) != LOW) {
     Serial.println("mode_timebased_automate = off");
     mode_timebased_automate = false;
   } else {
     Serial.println("mode_timebased_automate = on (default)");
   }
-  Serial.println(digitalRead(MODE_TIMEBASED_AUTOMATE_PIN_INPUT));
   
   // MODE: DEEP_SLEEP (default false)
+  pinMode(MODE_DEEP_SLEEP_PIN_INPUT, INPUT_PULLUP);      // input pin for mode_deep_sleep true
   pinMode(MODE_DEEP_SLEEP_PIN_OUTPUT, OUTPUT);     // output pin for mode_deep_sleep true
-  pinMode(MODE_DEEP_SLEEP_PIN_INPUT, INPUT);      // input pin for mode_deep_sleep true
-  digitalWrite(MODE_DEEP_SLEEP_PIN_OUTPUT, HIGH);
-  if (digitalRead(MODE_DEEP_SLEEP_PIN_INPUT) > 0) {
+  digitalWrite(MODE_DEEP_SLEEP_PIN_OUTPUT, LOW);
+  Serial.print("digitalRead(MODE_DEEP_SLEEP_PIN_INPUT): ");
+  Serial.println(digitalRead(MODE_DEEP_SLEEP_PIN_INPUT));
+  if (digitalRead(MODE_DEEP_SLEEP_PIN_INPUT) != LOW) {
     Serial.println("mode_deep_sleep = on");
     mode_deep_sleep = true;
   } else {
     Serial.println("mode_deep_sleep = off (default)");
   }
-  Serial.println(digitalRead(MODE_DEEP_SLEEP_PIN_INPUT));
 }
 
 // TIME
+void loop_time() {
+  if (((millis() - last_millis) > 3600000) && ((hour() - last_hour) != 1)) {
+    // only check time under 2 conditions: (1) if an hour has passed, and (2) if the last hour and current hour 
+    // is NOT different by 1 (which means it has been off). also gives a little bit of redundancy so there will 
+    // be a check at least one times a day at change of day 
+    Serial.println(millis() - last_millis);
+    update_time();
+  }
+}
+
 void update_time() {
   Serial.println("update_time");
   timeClient.update();
@@ -292,16 +294,14 @@ void reconnect() {
   }
 }
 
-void loop_timebased_automate() {
-  // will check for current time, then turn off light if the time is right
-  if (((hour() >= 0 && hour() <= MODE_TIMEBASED_AUTOMATE_MORNING) || ((hour() >= MODE_TIMEBASED_AUTOMATE_NIGHT) && (hour() <= 23)))) {
-    // if 18:00 or more, turn on lights
-    Serial.println("Night Time: On");
-    mqtt_publish(topic_light_switch_1, "1", 1);
-  } else {
-    Serial.println("Night Time: Off");
-    mqtt_publish(topic_light_switch_1, "0", 0);
-  }
+void lights_on() {
+  Serial.println("Lights: On");
+  mqtt_publish(topic_light_switch_1, "1", 1);
+}
+
+void lights_off() {
+  Serial.println("Lights: Off");
+  mqtt_publish(topic_light_switch_1, "0", 1);
 }
 
 // SERVO
@@ -318,4 +318,12 @@ void switch_turn_on(bool turn_on) {
     servo.write(30);
     delay(500);
   }
+}
+
+void blink_once() {
+  digitalWrite(BUILTIN_LED, LOW);
+  delay(500);
+  digitalWrite(BUILTIN_LED, HIGH);
+  delay(500);
+  // Serial.println("blink_once");
 }
